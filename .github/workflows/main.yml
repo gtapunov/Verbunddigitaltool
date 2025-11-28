@@ -1,44 +1,61 @@
-name: Deploy Vite Site
+name: Deploy static content to Pages
 
 on:
+  # Запуск при пуше в ветку main
   push:
-    branches:
-      - main
+    branches: ["main"]
+
+  # Позволяет запускать вручную из вкладки Actions
+  workflow_dispatch:
+
+# Права доступа, необходимые для деплоя в Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Разрешить только один одновременный деплой
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
 
 jobs:
+  # Работа по сборке (build)
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
-
+      - name: Checkout
+        uses: actions/checkout@v4
+      
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
-
+          node-version: 20
+          cache: 'npm'
+          
       - name: Install dependencies
-        run: npm install
-
+        run: npm ci
+        
       - name: Build
         run: npm run build
-
-      - name: Upload build artifact for Pages
-        # IMPORTANT: use v3 here to avoid transitively pulling upload-artifact@v3
+        
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          # Vite обычно собирает проект в папку dist
+          path: './dist'
 
+  # Работа по деплою (deploy)
   deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     needs: build
     runs-on: ubuntu-latest
-
-    permissions:
-      pages: write
-      id-token: write
-
     steps:
       - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
         uses: actions/deploy-pages@v2
     steps:
       - name: Deploy to GitHub Pages
