@@ -1,26 +1,20 @@
 name: Deploy Vite to Pages
 
 on:
-  # Запуск при пуше в ветку main
   push:
     branches: ["main"]
-
-  # Позволяет запускать вручную из вкладки Actions
   workflow_dispatch:
 
-# Права доступа
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Разрешить только один одновременный деплой
 concurrency:
   group: "pages"
   cancel-in-progress: true
 
 jobs:
-  # Работа по сборке (build)
   build:
     runs-on: ubuntu-latest
     steps:
@@ -31,10 +25,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          # Мы убрали 'cache: npm', так как у вас пока нет package-lock.json
           
       - name: Install dependencies
-        # Используем 'install' вместо 'ci', чтобы он сам создал lock-файл
         run: npm install
         
       - name: Build
@@ -43,10 +35,9 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Vite собирает проект в папку dist
-          path: './dist'
+          # ИСПРАВЛЕНО: теперь указываем папку build
+          path: './build'
 
-  # Работа по деплою (deploy)
   deploy:
     environment:
       name: github-pages
