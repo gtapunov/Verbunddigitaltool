@@ -1,5 +1,7 @@
 import { OptionOneLayout } from './components/OptionOneLayout';
-import verbundLogo from 'figma:asset/7709f7159375184fbbc356d7e3b27d4add6158f6.png';
+
+// ИСПРАВЛЕНО: Теперь мы импортируем файл по нормальному пути
+import verbundLogo from './assets/logo.png';
 
 export default function App() {
   return (
