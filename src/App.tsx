@@ -1,7 +1,7 @@
 import { OptionOneLayout } from './components/OptionOneLayout';
 
-// ИСПРАВЛЕНО: Теперь мы импортируем файл по нормальному пути
-import verbundLogo from './assets/logo.png';
+// Прямая ссылка на SVG логотип с Википедии
+const verbundLogo = "https://upload.wikimedia.org/wikipedia/commons/b/bd/Verbund.svg";
 
 export default function App() {
   return (
