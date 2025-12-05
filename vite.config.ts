@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react-swc';
 import path from 'path';
 
 export default defineConfig({
-  // ЭТА СТРОКА ИСПРАВЛЯЕТ БЕЛЫЙ ЭКРАН НА GITHUB PAGES:
   base: '/Verbunddigitaltool/',
 
   plugins: [react()],
