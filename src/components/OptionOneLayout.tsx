@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { TechnologyCard } from './TechnologyCard';
-import { Droplet, Sun, Battery, Wind } from 'lucide-react';
+import { Droplet, Sun, Battery, Wind, Info } from 'lucide-react';
 
 type Technology = {
   name: string;
@@ -8,6 +8,7 @@ type Technology = {
   disruptiveness: 'optimising' | 'innovative';
   itLayer: string;
   appArea: string;
+  priority: 1 | 2 | 3 | 4;
 };
 
 const technologies: Technology[] = [
@@ -17,6 +18,7 @@ const technologies: Technology[] = [
     disruptiveness: 'innovative',
     itLayer: 'Application',
     appArea: 'Generation Forecasting',
+    priority: 1,
   },
   {
     name: 'Digital Twin for Turbines & Generators',
@@ -24,6 +26,7 @@ const technologies: Technology[] = [
     disruptiveness: 'innovative',
     itLayer: 'Application',
     appArea: 'Asset Condition Monitoring',
+    priority: 2,
   },
   {
     name: 'Acoustic Emissions Monitoring',
@@ -31,6 +34,7 @@ const technologies: Technology[] = [
     disruptiveness: 'optimising',
     itLayer: 'Infrastructure',
     appArea: 'Predictive Maintenance',
+    priority: 1,
   },
   {
     name: 'AUVs & ROVs for Turbine Inspection',
@@ -38,6 +42,7 @@ const technologies: Technology[] = [
     disruptiveness: 'innovative',
     itLayer: 'Infrastructure',
     appArea: 'Asset Condition Monitoring',
+    priority: 3,
   },
   {
     name: 'AI-Powered Hybrid PV+Storage Assets',
@@ -45,6 +50,7 @@ const technologies: Technology[] = [
     disruptiveness: 'innovative',
     itLayer: 'Application',
     appArea: 'Dispatch & Scheduling',
+    priority: 2,
   },
   {
     name: 'Autonomous Solar O&M',
@@ -52,6 +58,7 @@ const technologies: Technology[] = [
     disruptiveness: 'innovative',
     itLayer: 'Infrastructure',
     appArea: 'Predictive Maintenance',
+    priority: 3,
   },
   {
     name: 'Grid-Forming Inverters (GFM)',
@@ -59,6 +66,7 @@ const technologies: Technology[] = [
     disruptiveness: 'innovative',
     itLayer: 'Compute',
     appArea: 'Dispatch & Scheduling',
+    priority: 1,
   },
   {
     name: 'Fleet-wide Digital Twins / Virtual Wind Farms',
@@ -66,6 +74,7 @@ const technologies: Technology[] = [
     disruptiveness: 'innovative',
     itLayer: 'Application',
     appArea: 'Operational Intelligence',
+    priority: 2,
   },
   {
     name: 'AI-Powered Predictive Forecasting & Generation Control',
@@ -73,6 +82,7 @@ const technologies: Technology[] = [
     disruptiveness: 'innovative',
     itLayer: 'Application',
     appArea: 'Generation Forecasting',
+    priority: 1,
   },
   {
     name: 'Edge Computing + IoT Real-Time Monitoring',
@@ -80,6 +90,7 @@ const technologies: Technology[] = [
     disruptiveness: 'innovative',
     itLayer: 'Compute',
     appArea: 'Predictive Maintenance',
+    priority: 3,
   },
   {
     name: 'Virtual Power Plant (VPP) Aggregation Platforms',
@@ -87,6 +98,7 @@ const technologies: Technology[] = [
     disruptiveness: 'innovative',
     itLayer: 'Application',
     appArea: 'Process Optimisation',
+    priority: 4,
   },
 ];
 
@@ -105,18 +117,25 @@ const ALL_GEN_TYPES = ['hydro', 'wind', 'solar', 'storage'] as const;
 export function OptionOneLayout() {
   const [showCard, setShowCard] = useState(false);
   const [selectedTech, setSelectedTech] = useState<string>('');
+  const [showScoreTooltip, setShowScoreTooltip] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const infoIconRef = useRef<HTMLDivElement>(null);
 
   // Filter states
   const [itLayersFilter, setItLayersFilter] = useState<string[]>([]);
   const [disruptFilter, setDisruptFilter] = useState<string[]>([]);
   const [appAreasFilter, setAppAreasFilter] = useState<string[]>([]);
   const [genTypesFilter, setGenTypesFilter] = useState<string[]>([]);
+  const [portfolioFilter, setPortfolioFilter] = useState<string[]>(['not-assigned']);
+  const [scoreFilter, setScoreFilter] = useState<string[]>([]);
 
   // Check if "All" is active
   const isAllItLayers = itLayersFilter.length === 0;
   const isAllDisrupt = disruptFilter.length === 0;
   const isAllAppAreas = appAreasFilter.length === 0;
   const isAllGenTypes = genTypesFilter.length === 0;
+  const isNotAssignedPortfolio = portfolioFilter.includes('not-assigned');
+  const isAllScore = scoreFilter.length === 0;
 
   // Toggle handlers
   const toggleItLayer = (layer: string) => {
@@ -159,6 +178,36 @@ export function OptionOneLayout() {
     setGenTypesFilter([]);
   };
 
+  const togglePortfolio = (status: string) => {
+    if (status === 'not-assigned') {
+      setPortfolioFilter(['not-assigned']);
+    } else {
+      setPortfolioFilter((prev) => {
+        const newFilter = prev.filter((s) => s !== 'not-assigned');
+        if (newFilter.includes(status)) {
+          const filtered = newFilter.filter((s) => s !== status);
+          return filtered.length === 0 ? ['not-assigned'] : filtered;
+        } else {
+          return [...newFilter, status];
+        }
+      });
+    }
+  };
+
+  const toggleAllPortfolio = () => {
+    setPortfolioFilter(['not-assigned']);
+  };
+
+  const toggleScore = (score: string) => {
+    setScoreFilter((prev) =>
+      prev.includes(score) ? prev.filter((s) => s !== score) : [...prev, score]
+    );
+  };
+
+  const toggleAllScore = () => {
+    setScoreFilter([]);
+  };
+
   // Filtered data
   const filteredTechnologies = useMemo(() => {
     return technologies.filter((tech) => {
@@ -166,10 +215,21 @@ export function OptionOneLayout() {
       const disruptMatch = isAllDisrupt || disruptFilter.includes(tech.disruptiveness);
       const appAreaMatch = isAllAppAreas || appAreasFilter.includes(tech.appArea);
       const genTypeMatch = isAllGenTypes || genTypesFilter.includes(tech.genType);
+      // Portfolio filter - if tech doesn't have portfolioStatus property, it passes through when "Not Assigned" is selected
+      const portfolioMatch = isNotAssignedPortfolio || (tech as any).portfolioStatus === undefined || portfolioFilter.includes((tech as any).portfolioStatus);
+      
+      // Score filter - map score ranges to priority levels
+      const scoreMatch = isAllScore || scoreFilter.some(score => {
+        if (score === 'priority-1') return tech.priority === 1;
+        if (score === 'priority-2') return tech.priority === 2;
+        if (score === 'priority-3') return tech.priority === 3;
+        if (score === 'not-recommended') return tech.priority === 4;
+        return false;
+      });
 
-      return layerMatch && disruptMatch && appAreaMatch && genTypeMatch;
+      return layerMatch && disruptMatch && appAreaMatch && genTypeMatch && portfolioMatch && scoreMatch;
     });
-  }, [itLayersFilter, disruptFilter, appAreasFilter, genTypesFilter, isAllItLayers, isAllDisrupt, isAllAppAreas, isAllGenTypes]);
+  }, [itLayersFilter, disruptFilter, appAreasFilter, genTypesFilter, portfolioFilter, scoreFilter, isAllItLayers, isAllDisrupt, isAllAppAreas, isAllGenTypes, isNotAssignedPortfolio, isAllScore]);
 
   // Visible rows and columns
   const visibleLayers = useMemo(() => {
@@ -208,6 +268,31 @@ export function OptionOneLayout() {
 
   const getTechnologiesForCell = (layer: string, area: string) => {
     return filteredTechnologies.filter((tech) => tech.itLayer === layer && tech.appArea === area);
+  };
+
+  const getPriorityIcon = (priority: 1 | 2 | 3 | 4) => {
+    switch (priority) {
+      case 1:
+        return {
+          bg: '#D64545',
+          text: '!!!',
+        };
+      case 2:
+        return {
+          bg: '#E87F3A',
+          text: '!!',
+        };
+      case 3:
+        return {
+          bg: '#4AAE68',
+          text: '!',
+        };
+      case 4:
+        return {
+          bg: '#6B7280',
+          text: '–',
+        };
+    }
   };
 
   return (
@@ -411,6 +496,157 @@ export function OptionOneLayout() {
             </button>
           </div>
         </div>
+
+        <div className="border-t border-slate-200 my-4"></div>
+
+        {/* Filter Section 5 - VERBUND Adoption Status */}
+        <div className="mb-5">
+          <h3 className="text-slate-700 mb-3 text-sm">VERBUND Adoption Status</h3>
+          <div className="space-y-2">
+            <button
+              onClick={toggleAllPortfolio}
+              className="flex items-center gap-2 w-full hover:bg-slate-50 py-1 -mx-1 px-1 rounded transition-colors"
+            >
+              <div className={`w-4 h-4 border-2 rounded flex items-center justify-center ${
+                isNotAssignedPortfolio ? 'bg-blue-600 border-blue-600' : 'border-slate-400'
+              }`}>
+                {isNotAssignedPortfolio && <div className="w-2 h-2 bg-white rounded-sm"></div>}
+              </div>
+              <span className={`text-sm text-left ${isNotAssignedPortfolio ? 'text-slate-900' : 'text-slate-600'}`}>
+                Not Assigned
+              </span>
+            </button>
+            <button
+              onClick={() => togglePortfolio('applied')}
+              className="flex items-center gap-2 w-full hover:bg-slate-50 py-1 -mx-1 px-1 rounded transition-colors"
+            >
+              <div className={`w-4 h-4 border-2 rounded flex items-center justify-center ${
+                portfolioFilter.includes('applied') ? 'bg-blue-600 border-blue-600' : 'border-slate-400'
+              }`}>
+                {portfolioFilter.includes('applied') && <div className="w-2 h-2 bg-white rounded-sm"></div>}
+              </div>
+              <span className={`text-sm text-left ${portfolioFilter.includes('applied') ? 'text-slate-900' : 'text-slate-600'}`}>
+                Already Applied by VERBUND
+              </span>
+            </button>
+            <button
+              onClick={() => togglePortfolio('in-plan')}
+              className="flex items-center gap-2 w-full hover:bg-slate-50 py-1 -mx-1 px-1 rounded transition-colors"
+            >
+              <div className={`w-4 h-4 border-2 rounded flex items-center justify-center ${
+                portfolioFilter.includes('in-plan') ? 'bg-blue-600 border-blue-600' : 'border-slate-400'
+              }`}>
+                {portfolioFilter.includes('in-plan') && <div className="w-2 h-2 bg-white rounded-sm"></div>}
+              </div>
+              <span className={`text-sm text-left ${portfolioFilter.includes('in-plan') ? 'text-slate-900' : 'text-slate-600'}`}>
+                In Plan
+              </span>
+            </button>
+            <button
+              onClick={() => togglePortfolio('outlook')}
+              className="flex items-center gap-2 w-full hover:bg-slate-50 py-1 -mx-1 px-1 rounded transition-colors"
+            >
+              <div className={`w-4 h-4 border-2 rounded flex items-center justify-center ${
+                portfolioFilter.includes('outlook') ? 'bg-blue-600 border-blue-600' : 'border-slate-400'
+              }`}>
+                {portfolioFilter.includes('outlook') && <div className="w-2 h-2 bg-white rounded-sm"></div>}
+              </div>
+              <span className={`text-sm text-left ${portfolioFilter.includes('outlook') ? 'text-slate-900' : 'text-slate-600'}`}>
+                Outlook
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div className="border-t border-slate-200 my-4"></div>
+
+        {/* Filter Section 6 - Technology Overall Score */}
+        <div className="mb-5">
+          <div className="flex items-center gap-1.5 mb-3">
+            <h3 className="text-slate-700 text-sm">Technology Overall Score</h3>
+            <div
+              ref={infoIconRef}
+              onMouseEnter={() => {
+                const rect = infoIconRef.current?.getBoundingClientRect();
+                if (rect) {
+                  setTooltipPosition({ x: rect.right + 8, y: rect.top });
+                }
+                setShowScoreTooltip(true);
+              }}
+              onMouseLeave={() => setShowScoreTooltip(false)}
+              className="cursor-help"
+            >
+              <Info className="w-3.5 h-3.5 text-slate-500" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <button
+              onClick={toggleAllScore}
+              className="flex items-center gap-2 w-full hover:bg-slate-50 py-1 -mx-1 px-1 rounded transition-colors"
+            >
+              <div className={`w-4 h-4 border-2 rounded flex items-center justify-center ${
+                isAllScore ? 'bg-blue-600 border-blue-600' : 'border-slate-400'
+              }`}>
+                {isAllScore && <div className="w-2 h-2 bg-white rounded-sm"></div>}
+              </div>
+              <span className={`text-sm ${isAllScore ? 'text-slate-900' : 'text-slate-600'}`}>
+                All
+              </span>
+            </button>
+            <button
+              onClick={() => toggleScore('priority-1')}
+              className="flex items-center gap-2 w-full hover:bg-slate-50 py-1 -mx-1 px-1 rounded transition-colors"
+            >
+              <div className={`w-4 h-4 border-2 rounded flex items-center justify-center ${
+                scoreFilter.includes('priority-1') ? 'bg-blue-600 border-blue-600' : 'border-slate-400'
+              }`}>
+                {scoreFilter.includes('priority-1') && <div className="w-2 h-2 bg-white rounded-sm"></div>}
+              </div>
+              <span className={`text-sm ${scoreFilter.includes('priority-1') ? 'text-slate-900' : 'text-slate-600'}`}>
+                10.0 &ndash; 8.0 (Priority 1)
+              </span>
+            </button>
+            <button
+              onClick={() => toggleScore('priority-2')}
+              className="flex items-center gap-2 w-full hover:bg-slate-50 py-1 -mx-1 px-1 rounded transition-colors"
+            >
+              <div className={`w-4 h-4 border-2 rounded flex items-center justify-center ${
+                scoreFilter.includes('priority-2') ? 'bg-blue-600 border-blue-600' : 'border-slate-400'
+              }`}>
+                {scoreFilter.includes('priority-2') && <div className="w-2 h-2 bg-white rounded-sm"></div>}
+              </div>
+              <span className={`text-sm ${scoreFilter.includes('priority-2') ? 'text-slate-900' : 'text-slate-600'}`}>
+                7.9 &ndash; 6.0 (Priority 2)
+              </span>
+            </button>
+            <button
+              onClick={() => toggleScore('priority-3')}
+              className="flex items-center gap-2 w-full hover:bg-slate-50 py-1 -mx-1 px-1 rounded transition-colors"
+            >
+              <div className={`w-4 h-4 border-2 rounded flex items-center justify-center ${
+                scoreFilter.includes('priority-3') ? 'bg-blue-600 border-blue-600' : 'border-slate-400'
+              }`}>
+                {scoreFilter.includes('priority-3') && <div className="w-2 h-2 bg-white rounded-sm"></div>}
+              </div>
+              <span className={`text-sm ${scoreFilter.includes('priority-3') ? 'text-slate-900' : 'text-slate-600'}`}>
+                5.9 &ndash; 4.0 (Priority 3)
+              </span>
+            </button>
+            <button
+              onClick={() => toggleScore('not-recommended')}
+              className="flex items-center gap-2 w-full hover:bg-slate-50 py-1 -mx-1 px-1 rounded transition-colors"
+            >
+              <div className={`w-4 h-4 border-2 rounded flex items-center justify-center ${
+                scoreFilter.includes('not-recommended') ? 'bg-blue-600 border-blue-600' : 'border-slate-400'
+              }`}>
+                {scoreFilter.includes('not-recommended') && <div className="w-2 h-2 bg-white rounded-sm"></div>}
+              </div>
+              <span className={`text-sm ${scoreFilter.includes('not-recommended') ? 'text-slate-900' : 'text-slate-600'}`}>
+                &lt; 4.0 (Not recommended)
+              </span>
+            </button>
+          </div>
+        </div>
       </aside>
 
       {/* Main Canvas - Technology Map */}
@@ -422,56 +658,63 @@ export function OptionOneLayout() {
         {/* Technology Grid */}
         <div className="border border-slate-300 rounded-lg bg-white overflow-hidden shadow-sm">
           {/* Header Row */}
-          <div className="grid border-b border-slate-300 bg-slate-100" style={{ gridTemplateColumns: `120px repeat(${visibleAppAreas.length}, 1fr)` }}>
-            <div className="p-3 border-r border-slate-200">
-              <span className="text-slate-700 text-sm">IT Layer / Application Area</span>
+          <div className="grid" style={{ gridTemplateColumns: `120px repeat(${visibleAppAreas.length}, 1fr)` }}>
+            {/* Top-left header cell */}
+            <div className="p-3 border-r border-slate-200 bg-[#00468E] flex items-center justify-center">
+              <span className="text-white text-sm font-bold">IT Layer</span>
             </div>
             {visibleAppAreas.map((area, idx) => (
-              <div key={idx} className="p-3 border-r border-slate-200 last:border-r-0">
-                <span className="text-slate-700 text-sm">{area}</span>
+              <div key={idx} className="p-3 border-r border-slate-200 last:border-r-0 bg-white">
+                <span className="text-slate-700 text-sm font-bold">{area}</span>
               </div>
             ))}
           </div>
 
+          {/* Orange divider line */}
+          <div className="w-full h-[3px] bg-[#E87F3A]"></div>
+
           {/* Grid Rows */}
           {visibleLayers.map((layer, rowIdx) => (
             <div key={rowIdx} className="grid border-b border-slate-200 last:border-b-0" style={{ gridTemplateColumns: `120px repeat(${visibleAppAreas.length}, 1fr)` }}>
-              <div className="p-3 border-r border-slate-200 bg-slate-50 flex items-center">
-                <span className="text-slate-700 text-sm">{layer}</span>
+              {/* Row label with dark blue background */}
+              <div className="p-3 border-r border-slate-200 bg-[#00468E] flex items-center justify-center">
+                <span className="text-white text-sm">{layer}</span>
               </div>
               {visibleAppAreas.map((area, colIdx) => {
                 const cellTechs = getTechnologiesForCell(layer, area);
                 return (
                   <div
                     key={colIdx}
-                    className="p-2 border-r border-slate-200 last:border-r-0 min-h-[100px]"
+                    className="p-2 border-r border-slate-200 last:border-r-0 min-h-[100px] bg-white"
                   >
-                    {cellTechs.map((tech, techIdx) => (
-                      <button
-                        key={techIdx}
-                        onClick={() => {
-                          setSelectedTech(tech.name);
-                          setShowCard(true);
-                        }}
-                        className={`w-full mb-2 last:mb-0 h-auto min-h-[80px] rounded border-2 p-2 relative transition-all hover:shadow-md hover:border-slate-500 ${getGenerationTypeColor(
-                          tech.genType
-                        )}`}
-                      >
-                        {/* Disruptiveness Circle */}
-                        <div
-                          className={`absolute top-1.5 right-1.5 w-3 h-3 rounded-full border`}
-                          style={{
-                            backgroundColor: tech.disruptiveness === 'optimising' ? '#83f28f' : '#ff7f7f',
-                            borderColor: tech.disruptiveness === 'optimising' ? '#5ec96a' : '#e65c5c',
+                    {cellTechs.map((tech, techIdx) => {
+                      const priorityIcon = getPriorityIcon(tech.priority);
+                      return (
+                        <button
+                          key={techIdx}
+                          onClick={() => {
+                            setSelectedTech(tech.name);
+                            setShowCard(true);
                           }}
-                        ></div>
+                          className={`w-full mb-2 last:mb-0 h-auto min-h-[80px] rounded border-2 p-2 relative transition-all hover:shadow-md hover:border-slate-500 ${getGenerationTypeColor(
+                            tech.genType
+                          )}`}
+                        >
+                          {/* Priority Icon */}
+                          <div
+                            className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] leading-none"
+                            style={{ backgroundColor: priorityIcon.bg }}
+                          >
+                            {priorityIcon.text}
+                          </div>
 
-                        {/* Technology Name */}
-                        <div className="text-slate-800 text-xs text-left pr-4">
-                          {tech.name}
-                        </div>
-                      </button>
-                    ))}
+                          {/* Technology Name */}
+                          <div className="text-slate-800 text-xs text-left pr-7">
+                            {tech.name}
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -521,28 +764,46 @@ export function OptionOneLayout() {
               </div>
             </div>
 
-            {/* Disruptiveness Legend */}
+            {/* Priority Legend */}
             <div>
-              <h3 className="text-slate-700 text-sm mb-3">Disruptiveness</h3>
-              <div className="flex gap-6">
-                {activeDisruptTypes.includes('optimising') && (
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full border"
-                      style={{ backgroundColor: '#83f28f', borderColor: '#5ec96a' }}
-                    ></div>
-                    <span className="text-slate-600 text-sm">Optimising / Mature</span>
+              <h3 className="text-slate-700 text-sm mb-3">Priority</h3>
+              <div className="flex gap-4 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] leading-none"
+                    style={{ backgroundColor: '#D64545' }}
+                  >
+                    !!!
                   </div>
-                )}
-                {activeDisruptTypes.includes('innovative') && (
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full border"
-                      style={{ backgroundColor: '#ff7f7f', borderColor: '#e65c5c' }}
-                    ></div>
-                    <span className="text-slate-600 text-sm">Innovative / Emerging</span>
+                  <span className="text-slate-600 text-sm">Priority 1</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] leading-none"
+                    style={{ backgroundColor: '#E87F3A' }}
+                  >
+                    !!
                   </div>
-                )}
+                  <span className="text-slate-600 text-sm">Priority 2</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] leading-none"
+                    style={{ backgroundColor: '#4AAE68' }}
+                  >
+                    !
+                  </div>
+                  <span className="text-slate-600 text-sm">Priority 3</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] leading-none"
+                    style={{ backgroundColor: '#6B7280' }}
+                  >
+                    –
+                  </div>
+                  <span className="text-slate-600 text-sm">Priority 4 (Not recommended)</span>
+                </div>
               </div>
             </div>
           </div>
@@ -551,6 +812,31 @@ export function OptionOneLayout() {
 
       {/* Technology Card Modal */}
       {showCard && <TechnologyCard techName={selectedTech} onClose={() => setShowCard(false)} />}
+
+      {/* Technology Overall Score Tooltip - Fixed Position Overlay */}
+      {showScoreTooltip && (
+        <div
+          className="fixed w-64 bg-white text-slate-900 text-xs p-3 rounded-lg border border-slate-300 shadow-lg pointer-events-none"
+          style={{ 
+            left: `${tooltipPosition.x}px`, 
+            top: `${tooltipPosition.y}px`,
+            zIndex: 99999
+          }}
+        >
+          <p className="mb-2">
+            <strong>Technology Overall Score</strong> is a weighted score that evaluates technologies based on 3 pillars: strategic fit, feasibility, and implementation.
+          </p>
+          <p className="mb-2">
+            <strong>Formula:</strong>
+          </p>
+          <p className="mb-2">
+            Total Score = Σ (Normalized Criterion Score × Criterion Weight)
+          </p>
+          <p>
+            See details by clicking on one of the technologies.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
